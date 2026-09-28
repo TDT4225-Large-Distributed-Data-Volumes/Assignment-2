@@ -1,0 +1,12 @@
+services:
+  mysql:
+    build: .
+    container_name: tdt4225-mysql
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    restart: unless-stopped
+
+volumes:
+  mysql-data:
