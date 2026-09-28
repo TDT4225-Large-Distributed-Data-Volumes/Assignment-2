@@ -220,3 +220,5 @@ __marimo__/
 # csv data files
 *.csv
 porto.zip
+
+*.DS_Store
