@@ -10,13 +10,18 @@ SEED = 42             # change to get a different random sample
 TRIP_IDS = []         # plot these trip IDs instead, e.g. [1372636858620000589]
 MIN_POINTS = 3        # skip empty and very short trips
 
+# %%
+
+#TRIP_IDS = pd.read_csv("fast_trip_ids.csv", header=None)[0].tolist()
+TRIP_IDS = [1383666543620000534] # Fastest trip
+
 # %% Load trips (reading the whole CSV takes ~15 s, only needed once)
 trips = pd.read_csv("porto/porto.csv", usecols=["TRIP_ID", "TAXI_ID", "CALL_TYPE", "TIMESTAMP", "POLYLINE"])
 trips["N_POINTS"] = trips["POLYLINE"].str.count(r"\[") - 1   # "[]" -> 0
 
 # %% Select trips
 if TRIP_IDS:
-    selected = trips[trips["TRIP_ID"].isin(TRIP_IDS)]
+    selected = trips[trips["TRIP_ID"].isin(TRIP_IDS)][0:50]
 else:
     candidates = trips[trips["N_POINTS"] >= MIN_POINTS]
     selected = candidates.sample(N_TRIPS, random_state=SEED) if RANDOM else candidates.head(N_TRIPS)
