@@ -222,3 +222,6 @@ __marimo__/
 porto.zip
 
 *.DS_Store
+# draw.io backup/temp files
+*.drawio.bkp
+*.drawio.dtmp
