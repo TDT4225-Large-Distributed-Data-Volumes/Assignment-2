@@ -13,7 +13,8 @@ MIN_POINTS = 3        # skip empty and very short trips
 # %%
 
 #TRIP_IDS = pd.read_csv("fast_trip_ids.csv", header=None)[0].tolist()
-TRIP_IDS = [1383666543620000534] # Fastest trip
+TRIP_IDS = [1383666543620000534] # Fast trip example
+
 
 # %% Load trips (reading the whole CSV takes ~15 s, only needed once)
 trips = pd.read_csv("porto/porto.csv", usecols=["TRIP_ID", "TAXI_ID", "CALL_TYPE", "TIMESTAMP", "POLYLINE"])
