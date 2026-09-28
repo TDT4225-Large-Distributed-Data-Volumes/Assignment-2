@@ -132,18 +132,6 @@ plt.xlabel("Longitude")
 plt.ylabel("Latitude")
 plt.show()
 
-# %% Density of all GPS points in the sample
-all_lons = [p[0] for c in sample["coords"] for p in c]
-all_lats = [p[1] for c in sample["coords"] for p in c]
-
-plt.figure(figsize=(8, 8))
-plt.hist2d(all_lons, all_lats, bins=400, cmap="viridis", cmin=1)
-plt.colorbar(label="GPS points")
-plt.title("Density of GPS points")
-plt.xlabel("Longitude")
-plt.ylabel("Latitude")
-plt.show()
-
 # %% Trip distance and max speed (haversine wants (lat, lon))
 def trip_stats(coords):
     dist = 0
@@ -167,25 +155,3 @@ plt.show()
 
 print((sample["max_speed"] > 150).sum(), "trips with speed above 150 km/h")
 print(sample["km"].describe())
-
-# %% List of trips with speed above 150 km/h
-fast = sample[sample["max_speed"] > 150]
-fast = fast.sort_values("max_speed", ascending=False)
-
-print(len(fast), "trips above 150 km/h")
-display(fast[["TRIP_ID", "TAXI_ID", "points", "km", "max_speed"]].head(20))
-
-# save to a file
-fast["TRIP_ID"].to_csv("fast_trip_ids.txt", index=False, header=False)# %%
-
-# %% Plot the fastest trip
-coords = fast["coords"].iloc[0]
-lons = [p[0] for p in coords]
-lats = [p[1] for p in coords]
-
-plt.figure(figsize=(8, 8))
-plt.plot(lons, lats, marker=".")
-plt.title("Fastest trip, max speed " + str(round(fast["max_speed"].iloc[0])) + " km/h")
-plt.xlabel("Longitude")
-plt.ylabel("Latitude")
-plt.show()
