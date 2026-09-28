@@ -1,3 +1,4 @@
+# %%
 import os
 
 import mysql.connector as mysql
@@ -16,7 +17,7 @@ def get_connection():
         password=os.getenv("DB_PASSWORD", "test123"),
     )
 
-
+# %%
 if __name__ == "__main__":
     connection = get_connection()
     cursor = connection.cursor()
