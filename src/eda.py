@@ -16,9 +16,9 @@ cat_cols = ["CALL_TYPE", "DAY_TYPE", "MISSING_DATA"]
 num_cols = ["TIMESTAMP", "POLYLINE"]
 
 # %% - Dataset overview: describe(), head(), etc.
+print(df.shape)
 display(df.describe(include='all'))
 display(df.head())
-#display(df.shape())
 print(df.info()) # data types, size, etc.
 print(df.nunique()) # shows how many unique values in each column
 
@@ -32,19 +32,32 @@ plt.ylabel("Number of rows")
 plt.tight_layout()
 plt.show()
 
+#%% Missing values in POLYLINE
 # find how many trajectories are empty lists: []
 empty = (df["POLYLINE"] == "[]").sum()
-print("Empty polylines:", empty)
+print("Polylines with empty lists []:", empty)
 
-# Own column in the dataset, indicating missing GPS points for Polyline field
-# Needs to be handled! 
+# Column in the set indicating missing GPS points for Polyline field
 print(df["MISSING_DATA"].value_counts())
 
+# check if empty polylines are actually marked in missing data column
+print(pd.crosstab(df["MISSING_DATA"], df["POLYLINE"] == "[]"))
 
-#%% - Check for duplicate 
+
+#%% EDA - Duplicates 
 print("Duplicate TRIP_IDs:", df["TRIP_ID"].duplicated().sum())
-# found 81, are these actual duplicates, or updated trip info, etc.
+print("Fully identical rows:", df.duplicated().sum())
+ 
+# are these actual duplicates, or different trips with the same id?
+dups = df[df["TRIP_ID"].duplicated(keep=False)].sort_values("TRIP_ID")
+display(dups.head(10))
 
+#%% - EDA Categorical columns
+# ORIGIN_CALL should only be set for A, ORIGIN_STAND only for B
+print(df["CALL_TYPE"].value_counts().sort_index())
+print(df.groupby("CALL_TYPE")["ORIGIN_CALL"].count())
+print(df.groupby("CALL_TYPE")["ORIGIN_STAND"].count())
+# all A trips have ORIGIN_CALL, but some B trips have no ORIGIN_STAND
 
 #%% - categorical columns plots
 # 3 unique values
@@ -57,7 +70,7 @@ df["DAY_TYPE"].value_counts().sort_index().plot.bar(rot=0)
 plt.title("DAY_TYPE")
 plt.show()
 
-# 10 rows with Ture (missing values in PolyLine field) 
+# 10 rows with true (missing values in PolyLine field) 
 df["MISSING_DATA"].value_counts().sort_index().plot.bar(rot=0)
 plt.title("MISSING_DATA")
 plt.show()
@@ -104,8 +117,8 @@ print(df["points"].describe())
 # each point is 15 seconds apart
 df["minutes"] = (df["points"] - 1).clip(lower=0) * 15 / 60
 
-df.loc[df["points"] <= 200, "points"].plot.hist(bins=100, logy=True)
-plt.title("GPS points per trip (up to 200)")
+df.loc[df["points"] <= 3000, "points"].plot.hist(bins=100, logy=True)
+plt.title("GPS points per trip (capped at 3000 points)")
 plt.xlabel("Points")
 plt.show()
 
@@ -115,13 +128,16 @@ plt.xlabel("Minutes")
 plt.show()
 
 print((df["points"] == 1).sum(), "trips with one point")
-print((df["points"] <= 3).sum(), "trips with three points or fewer")
+print((df["points"] < 3).sum(), "trips with fewer than three points")
+print((df["minutes"] > 240).sum(), "trips longer than 4 hours")
+print("Highest amounts of points in a trip: ", (df["points"]).max())
+print("Longest trip:", df["minutes"].max() / 60, "hours")
 
 # %% Sample of trips, parsed to lists of [lon, lat]
 sample = df[df["points"] > 0].sample(20000, random_state=1).copy()
 sample["coords"] = sample["POLYLINE"].apply(json.loads)
 
-# %% Five example trajectories
+# %% example trajectories
 plt.figure(figsize=(8, 8))
 for coords in sample["coords"].head(100):
     lons = [p[0] for p in coords]
@@ -155,3 +171,6 @@ plt.show()
 
 print((sample["max_speed"] > 150).sum(), "trips with speed above 150 km/h")
 print(sample["km"].describe())
+print(sample["max_speed"].describe())
+
+# %%
