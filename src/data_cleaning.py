@@ -31,22 +31,22 @@ def trip_features(row):
     coords = json.loads(row["POLYLINE"])
     n = len(coords)
 
+    # Empty polyline: we know nothing about the trip, so distance and speed are NULL
     if n == 0:
-        return pd.Series([0, 0.0, 0.0, None, None, None, None])
+        return pd.Series([0, None, None, None, None, None, None])
 
     start_lon, start_lat = coords[0]
     end_lon, end_lat = coords[-1]
-
-    if n == 1:
-        return pd.Series([1, 0.0, 0.0, start_lon, start_lat, end_lon, end_lat])
-
-    pts = np.array(coords)[:, ::-1]  # (lon, lat) -> (lat, lon)
 
     # Trips with missing GPS points have gaps, so distance and speed would be wrong.
     # Set them to NULL, but keep point count and start/end coords.
     if row["MISSING_DATA"]:
         return pd.Series([n, None, None, start_lon, start_lat, end_lon, end_lat])
 
+    if n == 1:
+        return pd.Series([1, 0.0, 0.0, start_lon, start_lat, end_lon, end_lat])
+
+    pts = np.array(coords)[:, ::-1]  # (lon, lat) -> (lat, lon)
     dist = haversine_vector(pts[:-1], pts[1:], Unit.KILOMETERS)
     km = dist.sum()
     max_speed = dist.max() / (15/3600) # 15 seconds between gps points
@@ -59,15 +59,30 @@ df[feature_cols] = df[["POLYLINE", "MISSING_DATA"]].apply(trip_features, axis=1)
 
 
 # 6. Start and end time. Points are 15s apart, so end time follows from the point count alone
-df["start_time"] = pd.to_datetime(df["TIMESTAMP"].astype("int64"), unit="s")
-# end_time is NULL for trips with missing data, since the point count is incomplete
-end_time = df["start_time"] + pd.to_timedelta((df["n_points"] - 1).clip(lower=0) * 15, unit="s")
-df["end_time"] = end_time.mask(df["MISSING_DATA"])
+# TIMESTAMP is a Unix timestamp (UTC). Porto uses Europe/Lisbon time (UTC+0 winter, UTC+1 summer),
+# so convert to local time, then drop the zone info since MySQL DATETIME doesn't store it.
+# end_time is computed in UTC first, so trips crossing a daylight saving change get the right length.
+def to_local(t):
+    return t.dt.tz_localize("UTC").dt.tz_convert("Europe/Lisbon").dt.tz_localize(None)
+
+start_utc = pd.to_datetime(df["TIMESTAMP"].astype("int64"), unit="s")
+end_utc = start_utc + pd.to_timedelta((df["n_points"] - 1).clip(lower=0) * 15, unit="s")
+df["start_time"] = to_local(start_utc)
+
+# end_time is NULL for trips with missing data (point count is incomplete)
+# and for empty polylines (no points to count)
+unknown = df["MISSING_DATA"] | (df["n_points"] == 0)
+df["end_time"] = to_local(end_utc).mask(unknown)
 
 # 7. Flag trips with speed above decided threshold (e.g. because of GPS dropout, tunnel)
-# NULL for trips with missing data, since we don't know their speed
-df["is_flagged"] = (df["max_speed"] > THRESHOLD).astype("boolean").mask(df["MISSING_DATA"])
+# NULL when we don't know the speed (missing data or empty polyline)
+df["is_flagged"] = (df["max_speed"] > THRESHOLD).astype("boolean").mask(df["max_speed"].isna())
 print(df["is_flagged"].sum(), "flagged trips of", len(df))
+
+# 8. MySQL types: booleans as 1/0 (NULL stays empty), point count as a whole number
+df["MISSING_DATA"] = df["MISSING_DATA"].astype("Int8")
+df["is_flagged"] = df["is_flagged"].astype("Int8")
+df["n_points"] = df["n_points"].astype(int)
 
 # Last, save the cleaned data, ready for insertion
 df.to_csv("porto/porto_clean.csv", index=False)
