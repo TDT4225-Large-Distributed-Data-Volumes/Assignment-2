@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from haversine import haversine_vector, Unit
 
-THRESHOLD = 200   # km/h
+THRESHOLD = 140   # km/h, based on EDA findings
 
 # 1. load data
 # read everything as text, so empty cells stay "", this will be null later
@@ -17,6 +17,10 @@ before = len(df)
 df = df.drop_duplicates(keep="first") # drop exact duplicates
 df = df.drop_duplicates(subset="TRIP_ID", keep=False) # drop all trips with duplicate id
 print(before - len(df), "duplicate rows dropped")
+
+# 2b. DAY_TYPE is 'A' for every trip, so it holds no information.
+print("DAY_TYPE values:", df["DAY_TYPE"].unique())
+df = df.drop(columns="DAY_TYPE")
 
 # 3. Empty fields become NULL (NaN becomes NULL on insert)
 df["ORIGIN_CALL"] = df["ORIGIN_CALL"].replace("", np.nan)
