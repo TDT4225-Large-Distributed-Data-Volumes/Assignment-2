@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from haversine import haversine_vector, Unit
 
-THRESHOLD = 150   # km/h
+THRESHOLD = 200   # km/h
 
 # 1. load data
 # read everything as text, so empty cells stay "", this will be null later
