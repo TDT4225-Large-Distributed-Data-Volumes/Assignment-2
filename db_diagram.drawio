@@ -1,10 +1,10 @@
 <mxfile host="Electron">
   <diagram name="Page-1" id="C-YrXrM4B3S2ybHo7CXW">
-    <mxGraphModel dx="875" dy="651" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1500" pageHeight="1500" math="0" shadow="0">
+    <mxGraphModel dx="1012" dy="749" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1500" pageHeight="1500" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="9D-aevXV2mbqcGPXW2PX-1" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=30;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="Trip" vertex="1">
+        <mxCell id="9D-aevXV2mbqcGPXW2PX-1" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=30;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="trip" vertex="1">
           <mxGeometry height="510" width="200" x="400" y="370" as="geometry" />
         </mxCell>
         <mxCell id="9D-aevXV2mbqcGPXW2PX-2" parent="9D-aevXV2mbqcGPXW2PX-1" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;whiteSpace=wrap;html=1;" value="trip_id: BIGINT (PK)" vertex="1">
@@ -55,7 +55,7 @@
         <mxCell id="9D-aevXV2mbqcGPXW2PX-53" parent="9D-aevXV2mbqcGPXW2PX-1" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;whiteSpace=wrap;html=1;" value="end_lat: DOUBLE" vertex="1">
           <mxGeometry height="30" width="200" y="480" as="geometry" />
         </mxCell>
-        <mxCell id="9D-aevXV2mbqcGPXW2PX-36" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=30;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="GpsPoint" vertex="1">
+        <mxCell id="9D-aevXV2mbqcGPXW2PX-36" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=30;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="gps_point" vertex="1">
           <mxGeometry height="150" width="230" x="760" y="470" as="geometry" />
         </mxCell>
         <mxCell id="9D-aevXV2mbqcGPXW2PX-37" parent="9D-aevXV2mbqcGPXW2PX-36" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;whiteSpace=wrap;html=1;" value="trip_id: BIGINT (PK_1) (FK)" vertex="1">
@@ -85,6 +85,25 @@
           <mxGeometry relative="1" x="-0.9229" as="geometry">
             <mxPoint x="8" y="-5" as="offset" />
           </mxGeometry>
+        </mxCell>
+        <mxCell id="14aqFPwLgby20_-MHzbB-6" edge="1" parent="1" source="14aqFPwLgby20_-MHzbB-1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.75;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;endArrow=none;endFill=0;" target="9D-aevXV2mbqcGPXW2PX-3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="14aqFPwLgby20_-MHzbB-7" connectable="0" parent="14aqFPwLgby20_-MHzbB-6" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="1..1" vertex="1">
+          <mxGeometry relative="1" x="-0.6909" y="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="14aqFPwLgby20_-MHzbB-8" connectable="0" parent="14aqFPwLgby20_-MHzbB-6" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="0..*" vertex="1">
+          <mxGeometry relative="1" x="0.7818" y="1" as="geometry">
+            <mxPoint x="-8" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="14aqFPwLgby20_-MHzbB-1" parent="1" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=30;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;" value="taxi" vertex="1">
+          <mxGeometry height="60" width="230" x="70" y="390" as="geometry" />
+        </mxCell>
+        <mxCell id="14aqFPwLgby20_-MHzbB-2" parent="14aqFPwLgby20_-MHzbB-1" style="text;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;whiteSpace=wrap;html=1;" value="taxi_id: BIGINT (PK)" vertex="1">
+          <mxGeometry height="30" width="230" y="30" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
