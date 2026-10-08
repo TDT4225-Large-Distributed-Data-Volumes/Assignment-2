@@ -14,8 +14,8 @@ df = pd.read_csv("porto/porto.csv", dtype=str, keep_default_na=False)
 # Copies that differ (same taxi and start time, different POLYLINE etc.) conflict,
 # and we can't tell which one is correct, so drop all of them.
 before = len(df)
-df = df.drop_duplicates(keep="first")
-df = df.drop_duplicates(subset="TRIP_ID", keep=False)
+df = df.drop_duplicates(keep="first") # drop exact duplicates
+df = df.drop_duplicates(subset="TRIP_ID", keep=False) # drop all trips with duplicate id
 print(before - len(df), "duplicate rows dropped")
 
 # 3. Empty fields become NULL (NaN becomes NULL on insert)
