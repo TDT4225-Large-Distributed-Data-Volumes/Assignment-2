@@ -10,9 +10,12 @@ THRESHOLD = 200   # km/h
 # read everything as text, so empty cells stay "", this will be null later
 df = pd.read_csv("porto/porto.csv", dtype=str, keep_default_na=False)
 
-# 2. Drop duplicate TRIP_IDs, keep the first occurrence of each.
+# 2. Duplicate TRIP_IDs. Exact copies are harmless, so keep one of each.
+# Copies that differ (same taxi and start time, different POLYLINE etc.) conflict,
+# and we can't tell which one is correct, so drop all of them.
 before = len(df)
-df = df.drop_duplicates(subset="TRIP_ID", keep="first")
+df = df.drop_duplicates(keep="first")
+df = df.drop_duplicates(subset="TRIP_ID", keep=False)
 print(before - len(df), "duplicate rows dropped")
 
 # 3. Empty fields become NULL (NaN becomes NULL on insert)
