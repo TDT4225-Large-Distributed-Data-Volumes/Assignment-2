@@ -1,22 +1,29 @@
 # %%
 import math
 
-import numpy as np
+import polars as pl
 from haversine import Unit, haversine, haversine_vector
-from tabulate import tabulate
 
 from local_db import get_connection
 
 connection = get_connection()
 cursor = connection.cursor()
 
+# Show up to 25 rows (all of every top 20) and round floats when displaying
+pl.Config.set_tbl_rows(25)
+pl.Config.set_float_precision(2)
 
-def run(query, params=None):
-    # Runs a query, prints the result as a table and returns the rows
+
+def run(query, params=None, show=True):
+    # Runs a query, prints the result and returns it as a polars DataFrame.
+    # MySQL returns AVG/SUM results as Decimal, so those are cast to floats for nicer display.
+    # show=False for queries that only fetch data for further processing in Python.
     cursor.execute(query, params)
-    rows = cursor.fetchall()
-    print(tabulate(rows, headers=cursor.column_names, floatfmt=".2f"))
-    return rows
+    df = pl.DataFrame(cursor.fetchall(), schema=cursor.column_names, orient="row")
+    df = df.with_columns(pl.col(pl.Decimal).cast(pl.Float64))
+    if show:
+        print(df)
+    return df
 
 
 # %%
@@ -26,7 +33,7 @@ SELECT
     (SELECT COUNT(*) FROM taxi)      AS taxis,
     (SELECT COUNT(*) FROM trip)      AS trips,
     (SELECT COUNT(*) FROM gps_point) AS gps_points
-""")
+""");
 
 # %%
 # Q2: What is the average number of trips per taxi?
@@ -39,7 +46,7 @@ FROM (
     LEFT JOIN trip ON trip.taxi_id = taxi.taxi_id
     GROUP BY taxi.taxi_id
 ) AS per_taxi
-""")
+""");
 
 # %%
 # Q3: List the top 20 taxis with the most trips.
@@ -49,13 +56,13 @@ FROM trip
 GROUP BY taxi_id
 ORDER BY n_trips DESC
 LIMIT 20
-""")
+""");
 
 # %%
 # Q4a: What is the most used call type per taxi?
 # Count trips per (taxi, call type) and rank the call types within each taxi.
 # RANK gives ties the same rank, so a taxi with a tie shows up once per tied call type.
-rows = run("""
+most_used = run("""
 WITH counts AS (
     SELECT taxi_id, call_type, COUNT(*) AS n_trips,
            RANK() OVER (PARTITION BY taxi_id ORDER BY COUNT(*) DESC) AS rnk
@@ -69,10 +76,7 @@ ORDER BY taxi_id
 """)
 
 # Summary: how many taxis have each call type as their most used
-summary = {}
-for _, call_type, _ in rows:
-    summary[call_type] = summary.get(call_type, 0) + 1
-print(tabulate(sorted(summary.items()), headers=["most_used_call_type", "n_taxis"]))
+print(most_used.group_by("most_used_call_type").agg(pl.len().alias("n_taxis")).sort("most_used_call_type"))
 
 # %%
 # Q4b: For each call type, the average trip duration and distance, and the share of trips
@@ -90,7 +94,7 @@ SELECT call_type,
 FROM trip
 GROUP BY call_type
 ORDER BY call_type
-""")
+""");
 
 # %%
 # Q5: The taxis with the most total hours driven, with their total distance, in order of hours.
@@ -106,7 +110,7 @@ FROM trip
 GROUP BY taxi_id
 ORDER BY total_hours DESC
 LIMIT 20
-""")
+""");
 
 # %%
 # Q6: Find the trips that passed within 100 m of Porto City Hall.
@@ -119,24 +123,25 @@ RADIUS_M = 100
 lat_pad = RADIUS_M / 111_320 * 1.1      # 10% margin so no point on the edge is missed
 lon_pad = RADIUS_M / (111_320 * math.cos(math.radians(CITY_HALL[0]))) * 1.1
 
-cursor.execute("""
+candidates = run("""
 SELECT trip_id, lat, lon
 FROM gps_point
 WHERE lat BETWEEN %s AND %s
   AND lon BETWEEN %s AND %s
 """, (CITY_HALL[0] - lat_pad, CITY_HALL[0] + lat_pad,
-      CITY_HALL[1] - lon_pad, CITY_HALL[1] + lon_pad))
-candidates = cursor.fetchall()
+      CITY_HALL[1] - lon_pad, CITY_HALL[1] + lon_pad), show=False)
 
-# trip_id -> number of its points within 100 m
-near_city_hall = {}
-for trip_id, lat, lon in candidates:
-    if haversine((lat, lon), CITY_HALL, unit=Unit.METERS) <= RADIUS_M:
-        near_city_hall[trip_id] = near_city_hall.get(trip_id, 0) + 1
+dist_m = [haversine(p, CITY_HALL, unit=Unit.METERS) for p in candidates.select("lat", "lon").iter_rows()]
+near = candidates.with_columns(pl.Series("dist_m", dist_m)).filter(pl.col("dist_m") <= RADIUS_M)
 
-print(len(candidates), "points in the box,", sum(near_city_hall.values()), "within", RADIUS_M, "m")
+# One row per trip, with how many of its points were within 100 m and how close it got
+near_city_hall = (near.group_by("trip_id")
+                  .agg(pl.len().alias("points_within_100m"), pl.col("dist_m").min().alias("closest_m"))
+                  .sort("trip_id"))
+
+print(len(candidates), "points in the box,", len(near), "within", RADIUS_M, "m")
 print(len(near_city_hall), "trips passed within", RADIUS_M, "m of City Hall")
-print(tabulate(sorted(near_city_hall.items())[:20], headers=["trip_id", "points_within_100m"]))
+print(near_city_hall)
 
 # %%
 # Q7: Number of invalid trips, i.e. trips with fewer than 3 GPS points.
@@ -145,7 +150,7 @@ SELECT COUNT(*) AS invalid_trips,
        100 * COUNT(*) / (SELECT COUNT(*) FROM trip) AS pct_of_all_trips
 FROM trip
 WHERE n_points < 3
-""")
+""");
 
 # Breakdown by point count, since 0 points (empty polyline) is a different case from 1-2 points
 run("""
@@ -154,7 +159,7 @@ FROM trip
 WHERE n_points < 3
 GROUP BY n_points
 ORDER BY n_points
-""")
+""");
 
 # %%
 # Q8: Trips that started on one calendar day and ended on the next (midnight crossers).
@@ -164,7 +169,7 @@ run("""
 SELECT COUNT(*) AS midnight_crossers
 FROM trip
 WHERE DATEDIFF(end_time, start_time) = 1
-""")
+""");
 
 run("""
 SELECT trip_id, taxi_id, start_time, end_time, duration_s / 60 AS duration_min
@@ -172,25 +177,26 @@ FROM trip
 WHERE DATEDIFF(end_time, start_time) = 1
 ORDER BY start_time
 LIMIT 20
-""")
+""");
 
 # %%
 # Q9: Trips whose start and end points are within 50 m of each other (circular trips).
 # Invalid trips (< 3 points, see Q7) are left out: with 1 point start and end are the same point,
 # which would make every such trip "circular".
-cursor.execute("""
+trips = run("""
 SELECT trip_id, start_lat, start_lon, end_lat, end_lon
 FROM trip
 WHERE n_points >= 3
-""")
-trips = cursor.fetchall()
+""", show=False)
 
-coords = np.array([row[1:] for row in trips])
-dist_m = haversine_vector(coords[:, 0:2], coords[:, 2:4], Unit.METERS)
+dist_m = haversine_vector(trips.select("start_lat", "start_lon").to_numpy(),
+                          trips.select("end_lat", "end_lon").to_numpy(), Unit.METERS)
+circular = (trips.with_columns(pl.Series("start_end_dist_m", dist_m))
+            .filter(pl.col("start_end_dist_m") <= 50)
+            .select("trip_id", "start_end_dist_m"))
 
-circular = [(trips[i][0], dist_m[i]) for i in np.flatnonzero(dist_m <= 50)]
 print(len(circular), "circular trips of", len(trips), "valid trips")
-print(tabulate(circular[:20], headers=["trip_id", "start_end_distance_m"], floatfmt=".1f"))
+print(circular)
 
 # %%
 # Q10: Average idle time between consecutive trips per taxi, top 20.
@@ -212,4 +218,4 @@ WHERE idle_s >= 0
 GROUP BY taxi_id
 ORDER BY avg_idle_hours DESC
 LIMIT 20
-""")
+""");
