@@ -28,6 +28,7 @@ def run(query, params=None, show=True):
 
 # %%
 # Q1: How many taxis, trips, and total GPS points are there?
+print("\n=== Q1 ===")
 run("""
 SELECT
     (SELECT COUNT(*) FROM taxi)      AS taxis,
@@ -48,6 +49,7 @@ SELECT
 # %%
 # Q2: What is the average number of trips per taxi?
 # LEFT JOIN from taxi, so a taxi without trips would count as 0 instead of being left out
+print("\n=== Q2 ===")
 run("""
 SELECT AVG(n_trips) AS avg_trips_per_taxi
 FROM (
@@ -71,6 +73,7 @@ FROM (
 
 # %%
 # Q3: List the top 20 taxis with the most trips.
+print("\n=== Q3 ===")
 run("""
 SELECT taxi_id, COUNT(*) AS n_trips
 FROM trip
@@ -112,6 +115,7 @@ LIMIT 20
 # Q4a: What is the most used call type per taxi?
 # Count trips per (taxi, call type) and rank the call types within each taxi.
 # RANK gives ties the same rank, so a taxi with a tie shows up once per tied call type.
+print("\n=== Q4a ===")
 most_used = run("""
 WITH counts AS (
     SELECT taxi_id, call_type, COUNT(*) AS n_trips,
@@ -126,6 +130,7 @@ ORDER BY taxi_id
 """)
 
 # Summary: how many taxis have each call type as their most used
+print("\n=== Q4a, number of taxis per most used call type ===")
 print(most_used.group_by("most_used_call_type").agg(pl.len().alias("n_taxis")).sort("most_used_call_type"))
 """ output:
     shape: (449, 3)
@@ -178,6 +183,7 @@ print(most_used.group_by("most_used_call_type").agg(pl.len().alias("n_taxis")).s
 # of trips starting in four time bands: 00–06, 06–12, 12–18, and 18–24.
 # AVG skips NULLs, so trips with missing data or no GPS points only count towards the time band
 # shares. start_time is Porto local time.
+print("\n=== Q4b ===")
 run("""
 SELECT call_type,
        COUNT(*)                                            AS n_trips,
@@ -210,6 +216,7 @@ ORDER BY call_type
 # List them in order of total hours.
 # SUM skips NULLs, so trips with missing data or no GPS points add nothing.
 # known_trips shows how many of the taxi's trips actually counted towards the totals.
+print("\n=== Q5 ===")
 run("""
 SELECT taxi_id,
        SUM(duration_s) / 3600 AS total_hours,
@@ -263,6 +270,7 @@ RADIUS_M = 100
 lat_pad = RADIUS_M / 111_320 * 1.1      # 10% margin so no point on the edge is missed
 lon_pad = RADIUS_M / (111_320 * math.cos(math.radians(CITY_HALL[0]))) * 1.1
 
+print("\n=== Q6 ===")
 candidates = run("""
 SELECT trip_id, lat, lon
 FROM gps_point
@@ -323,6 +331,7 @@ print(near_city_hall)
 # %%
 # Q7: Identify the number of invalid trips. An invalid trip is defined as a trip with fewer
 # than 3 GPS points.
+print("\n=== Q7 ===")
 run("""
 SELECT COUNT(*) AS invalid_trips,
        100 * COUNT(*) / (SELECT COUNT(*) FROM trip) AS pct_of_all_trips
@@ -331,6 +340,7 @@ WHERE n_points < 3
 """);
 
 # Breakdown by point count, since 0 points (empty polyline) is a different case from 1-2 points
+print("\n=== Q7, invalid trips by number of GPS points ===")
 run("""
 SELECT n_points, COUNT(*) AS n_trips
 FROM trip
@@ -363,13 +373,14 @@ ORDER BY n_points
 # Q8: Find the trips that started on one calendar day and ended on the next (midnight crossers).
 # DATEDIFF only compares the dates, so 23:59 -> 00:01 counts as 1 day.
 # Trips with unknown end_time (missing data, empty polyline) can't be checked and are left out.
+print("\n=== Q8 ===")
 run("""
 SELECT COUNT(*) AS midnight_crossers
 FROM trip
 WHERE DATEDIFF(end_time, start_time) = 1
 """);
 
-# TODO: fjerne denne?
+print("\n=== Q8, first 20 midnight crossers ===")
 run("""
 SELECT trip_id, taxi_id, start_time, end_time, duration_s / 60 AS duration_min
 FROM trip
@@ -419,6 +430,7 @@ LIMIT 20
 # Q9: Find the trips whose start and end points are within 50 m of each other (circular trips).
 # Invalid trips (< 3 points, see Q7) are left out: with 1 point start and end are the same point,
 # which would make every such trip "circular".
+print("\n=== Q9 ===")
 trips = run("""
 SELECT trip_id, start_lat, start_lon, end_lat, end_lon
 FROM trip
@@ -476,6 +488,7 @@ print(circular)
 # Idle time = next trip's start_time - this trip's end_time, with trips ordered by start_time per taxi.
 # Gaps after a trip with unknown end_time are NULL and skipped by AVG.
 # Negative gaps (next trip starts before this one ends) are overlapping trips, a data error, so skipped.
+print("\n=== Q10 ===")
 run("""
 WITH gaps AS (
     SELECT taxi_id,
