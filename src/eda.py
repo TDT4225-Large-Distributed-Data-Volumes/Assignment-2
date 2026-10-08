@@ -52,6 +52,14 @@ print("Fully identical rows:", df.duplicated().sum())
 dups = df[df["TRIP_ID"].duplicated(keep=False)].sort_values("TRIP_ID")
 display(dups.head(10))
 
+# which columns differ between rows that share a TRIP_ID?
+differs = (dups.groupby("TRIP_ID").nunique(dropna=False) > 1).sum()
+differs.plot.bar(rot=45)
+plt.title("Columns that differ within duplicate TRIP_IDs")
+plt.ylabel("Number of TRIP_IDs")
+plt.tight_layout()
+plt.show()
+
 #%% - EDA Categorical columns
 # ORIGIN_CALL should only be set for A, ORIGIN_STAND only for B
 print(df["CALL_TYPE"].value_counts().sort_index())
@@ -87,27 +95,38 @@ plt.xlabel("Number of trips")
 plt.ylabel("Number of taxis")
 plt.show()
 
-# %% - Plots of times of trips, days, etc. 
-time = pd.to_datetime(df["TIMESTAMP"].astype(int), unit="s")
+# %% - Plots of times of trips, days, etc.
+time = pd.to_datetime(df["TIMESTAMP"].astype(int), unit="s")   # UTC
+local = time.dt.tz_localize("UTC").dt.tz_convert("Europe/Lisbon").dt.tz_localize(None)
 
-# shownumber of trips per hour
-time.dt.hour.value_counts().sort_index().plot.bar(rot=0)
+# UTC vs local time: Porto is UTC+1 in summer, so the hours are shifted
+summer = time.dt.month.isin([7, 8])
+pd.DataFrame({
+    "UTC": time[summer].dt.hour.value_counts().sort_index(),
+    "Local (Lisbon)": local[summer].dt.hour.value_counts().sort_index(),
+}).plot(marker="o")
+plt.title("Trips per hour in July–August: UTC vs local time")
+plt.xlabel("Hour")
+plt.show()
+
+# from here on, use local time (same as in data_cleaning.py)
+local.dt.hour.value_counts().sort_index().plot.bar(rot=0)
 plt.title("Trips per hour of day")
 plt.show()
 
-# weekdays, Monday=0, Thursda=1, etc.
-time.dt.dayofweek.value_counts().sort_index().plot.bar(rot=0)
+# weekdays, Monday=0, Tuesday=1, etc.
+local.dt.dayofweek.value_counts().sort_index().plot.bar(rot=0)
 plt.title("Trips per weekday (0 = Monday)")
 plt.show()
 
 # Number of trips per day
 plt.figure(figsize=(12, 4))
-time.dt.date.value_counts().sort_index().plot()
+local.dt.date.value_counts().sort_index().plot()
 plt.title("Trips per day")
 plt.xlabel("Date")
 plt.ylabel("Number of trips")
 plt.show()
-print(time.min(), time.max())
+print(local.min(), local.max())
 
 # %% Number of GPS points per trip
 df["points"] = df["POLYLINE"].str.count(r"\],\[") + 1
@@ -169,8 +188,40 @@ plt.title("Trip distance (km)")
 plt.xlabel("km")
 plt.show()
 
-print((sample["max_speed"] > 150).sum(), "trips with speed above 150 km/h")
-print(sample["km"].describe())
-print(sample["max_speed"].describe())
+THRESHOLD = 140
+
+sample["max_speed"].clip(upper=500).plot.hist(bins=100, logy=True)
+plt.axvline(THRESHOLD, color="red", linestyle="--", label=f"{THRESHOLD} km/h")
+plt.title("Max speed per trip (clipped at 500 km/h)")
+plt.xlabel("km/h")
+plt.legend()
+plt.show()
+
+# how many trips each threshold would flag
+for t in [100, 140, 150, 200, 300]:
+    print(f"> {t} km/h: {(sample['max_speed'] > t).mean() * 100:.1f}% of trips")
+
+# %% Trips with the biggest jumps
+print(sample.nlargest(5, "max_speed")[["TRIP_ID", "max_speed", "points"]])
+# TRIP_ID     max_speed  points 
+# 597583   1383666543620000534  21812.631343     329
+# 1224320  1395653018620000698  11658.738772     181
+# 318134   1378881561620000178  10026.690618     309
+# 1587561  1402067105620000207   7811.154926     125
+# 41298    1373361455620000541   3401.758789     371
+
+# %% Plot a single trip
+#trip = sample.loc[sample["max_speed"].idxmax()]   # trip with the biggest jump
+trip = sample[sample["TRIP_ID"] == 1378881561620000178].iloc[0]   # or pick one by id
+
+lons = [p[0] for p in trip["coords"]]
+lats = [p[1] for p in trip["coords"]]
+
+plt.figure(figsize=(8, 8))
+plt.plot(lons, lats, marker=".", markersize=4)
+plt.title(f"Trip {trip['TRIP_ID']}, max speed {trip['max_speed']:.0f} km/h")
+plt.xlabel("Longitude")
+plt.ylabel("Latitude")
+plt.show()
 
 # %%
